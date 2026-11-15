@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asistente virtual de la librería</title>
+<style>
+  :root {
+    --green: #128C7E;
+    --green-dark: #075E54;
+    --chat-bg: #efeae2;
+    --ink: #24312f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: transparent; color: var(--ink); }
+  .chat-widget { position: fixed; right: 18px; bottom: 18px; z-index: 9999; }
+  .launcher {
+    width: 62px; height: 62px; border: 0; border-radius: 50%;
+    background: var(--green); color: #fff; box-shadow: 0 5px 18px #0003;
+    cursor: pointer; font-size: 27px;
+  }
+  .launcher:hover { background: var(--green-dark); }
+  .launcher:focus-visible, button:focus-visible { outline: 3px solid #f4c542; outline-offset: 2px; }
+  .chat-panel {
+    display: none; width: min(350px, calc(100vw - 28px)); height: 500px;
+    max-height: calc(100vh - 100px); margin-bottom: 12px; border-radius: 16px;
+    overflow: hidden; background: #fff; box-shadow: 0 8px 30px #0003; flex-direction: column;
+  }
+  .chat-panel.open { display: flex; }
+  .chat-header { background: var(--green-dark); color: #fff; padding: 14px 15px; display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: #ffffff25; display: grid; place-items: center; font-size: 22px; }
+  .head-copy { flex: 1; }
+  .head-copy strong { display: block; font-size: 14px; }
+  .head-copy small { display: block; opacity: .88; margin-top: 4px; }
+  .close { border: 0; background: transparent; color: #fff; font-size: 24px; cursor: pointer; }
+  .messages { flex: 1; padding: 14px; overflow: auto; background: var(--chat-bg); display: flex; flex-direction: column; gap: 10px; }
+  .bubble { max-width: 92%; padding: 10px 12px; border-radius: 12px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .bot { background: #fff; align-self: flex-start; border-top-left-radius: 4px; }
+  .user { background: #d9fdd3; align-self: flex-end; border-top-right-radius: 4px; }
+  .quick-replies { padding: 10px; display: flex; flex-wrap: wrap; gap: 7px; background: #fff; border-top: 1px solid #eee; }
+  .quick-replies button { border: 1px solid var(--green); background: #fff; color: var(--green-dark); border-radius: 18px; padding: 8px 10px; cursor: pointer; font-size: 12px; }
+  .quick-replies button:hover { background: #e7f5f2; }
+  .note { text-align: center; color: #66716f; background: #fff; padding: 5px 8px 9px; font-size: 10px; }
+  @media (max-width: 380px) {
+    .chat-widget { right: 10px; bottom: 10px; }
+    .chat-panel { height: min(500px, calc(100vh - 90px)); }
+  }
+</style>
+</head>
+<body>
+<div class="chat-widget">
+  <section class="chat-panel" id="chatPanel" aria-label="Chat del asistente virtual">
+    <header class="chat-header">
+      <div class="avatar" aria-hidden="true">📚</div>
+      <div class="head-copy">
+        <strong>Asistente virtual</strong>
+        <small>Ayuda e información</small>
+      </div>
+      <button class="close" id="closeChat" aria-label="Cerrar chat">×</button>
+    </header>
+
+    <main class="messages" id="messages" aria-live="polite">
+      <div class="bubble bot">¡Hola! 👋 Bienvenido/a a nuestra papeleria. Soy el asistente virtual de Conexion+. Selecciona una opción para encontrar la información que necesitas.</div>
+      </main>
+
+    <nav class="quick-replies" id="quickReplies" aria-label="Opciones de ayuda">
+      <button data-topic="productos">📚 Productos</button>
+      <button data-topic="escolar">✏️ Útiles escolares</button>
+      <button data-topic="oficina">🗂️ Papelería y oficina</button>
+      <button data-topic="servicios">🖨️ Servicios</button>
+      <button data-topic="horario">🕒 Horarios</button>
+      <button data-topic="ubicacion">📍 Ubicación</button>
+      <button data-topic="contacto">📞 Contacto</button>
+      <button data-topic="menu">↩ Menú principal</button>
+    </nav>
+
+    <div class="note">Asistente informativo · Confirma precios y existencias con la librería.</div>
+  </section>
+
+  <button class="launcher" id="openChat" aria-label="Abrir asistente virtual" title="¿Necesitas ayuda?">💬</button>
+</div>
+
+<script>
+(function () {
+  const panel = document.getElementById('chatPanel');
+  const openBtn = document.getElementById('openChat');
+  const closeBtn = document.getElementById('closeChat');
+  const messages = document.getElementById('messages');
+  const replies = document.getElementById('quickReplies');
+
+  // EDITA AQUÍ los datos reales de la librería cuando los tengas.
+  const LIBRERIA = {
+  nombre: 'CONEXIÓN PLUS',
+  horario: 'Lunes a sábado, de 8:00 a. m. a 6:00 p. m.',
+  telefono: '2783-3984'
+};
+
+  const answers = {
+    productos: 'Puedes consultar por útiles escolares, libros, artículos de papelería y materiales de oficina. Selecciona una categoría del menú para recibir más información. No puedo confirmar precios ni existencias actuales.',
+    escolar: 'En útiles escolares puedes consultar por cuadernos, lápices, bolígrafos, borradores, reglas, colores, tijeras, pegamento y materiales de geometría o manualidades. La disponibilidad debe confirmarse directamente con la librería.',
+    oficina: 'En papelería y materiales de oficina puedes consultar por resmas de papel, carpetas, folders, sobres, archivadores, bolígrafos, marcadores y otros artículos. Consulta con la librería para confirmar las marcas, precios y existencias.',
+    servicios: 'Los servicios disponibles deben confirmarse con la librería. Puedes consultar si ofrecen fotocopias, impresiones, escaneo, anillado, laminado u otros servicios; no todos los establecimientos ofrecen los mismos servicios.',
+    horario: '🕒 Horario de atención: ' + LIBRERIA.horario + 'Te recomendamos confirmar el horario antes de visitar el establecimiento.',
+    ubicacion: '📍 Ubicación: ' + ' Nos encontramos en Intibucá, Intibucá, sobre el Boulevard Rodolfo Z. Velásquez., aproximadamente a 30 metros de la Universidad Pedagógica Nacional Francisco Morazán, frente al Hotel El Way.',
+    contacto: '📞 Contacto: ' + LIBRERIA.telefono + ' ',
+    menu: '¡Con gusto! 😊 Selecciona una opción del menú para consultar sobre productos, servicios, horarios o contacto.'
+  };
+
+  function addMessage(text, who) {
+    const el = document.createElement('div');
+    el.className = 'bubble ' + who;
+    el.textContent = text;
+    messages.appendChild(el);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  openBtn.addEventListener('click', function () {
+    panel.classList.add('open');
+    openBtn.style.display = 'none';
+  });
+
+  closeBtn.addEventListener('click', function () {
+    panel.classList.remove('open');
+    openBtn.style.display = 'block';
+    openBtn.focus();
+  });
+
+  replies.addEventListener('click', function (event) {
+    const button = event.target.closest('button[data-topic]');
+    if (!button) return;
+    const topic = button.dataset.topic;
+    addMessage(button.textContent.trim(), 'user');
+    addMessage(answers[topic] || answers.menu, 'bot');
+  });
+})();
+</script>
+</body>
+</html>
